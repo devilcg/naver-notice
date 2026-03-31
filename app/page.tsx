@@ -74,7 +74,7 @@ function SourcePanel({ source, notices, loading }: { source: Source; notices: No
           <a
             href={
               source === 'smartstore' ? 'https://sell.smartstore.naver.com/#/notice/list' :
-              source === 'searchad'   ? 'https://searchad.naver.com/biz-center/noticeList' :
+              source === 'searchad'   ? 'https://ads.naver.com/notice' :
               'https://developers.naver.com/notice/'
             }
             target="_blank"
