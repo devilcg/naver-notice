@@ -5,7 +5,6 @@ import type { Notice } from './api/notices/route';
 
 const SOURCE_META = {
   smartstore: { name: '스마트스토어', emoji: '🛒', color: '#03C75A', bg: '#f0fff6', border: '#b2f0d0' },
-  searchad:   { name: '네이버 광고',   emoji: '📢', color: '#1a73e8', bg: '#f0f6ff', border: '#b2d0f0' },
   developers: { name: '개발자센터',    emoji: '⚙️', color: '#6d28d9', bg: '#f5f0ff', border: '#d0b2f0' },
 };
 
@@ -13,13 +12,12 @@ type Source = keyof typeof SOURCE_META;
 
 interface Data {
   smartstore: Notice[];
-  searchad: Notice[];
   developers: Notice[];
   fetchedAt: string;
 }
 
 function NoticeCard({ notice }: { notice: Notice }) {
-  const meta = SOURCE_META[notice.source];
+  const meta = SOURCE_META[notice.source as Source];
   return (
     <a
       href={notice.url}
@@ -74,7 +72,6 @@ function SourcePanel({ source, notices, loading }: { source: Source; notices: No
           <a
             href={
               source === 'smartstore' ? 'https://sell.smartstore.naver.com/#/notice/list' :
-              source === 'searchad'   ? 'https://ads.naver.com/notice' :
               'https://developers.naver.com/notice/'
             }
             target="_blank"
@@ -133,7 +130,7 @@ export default function Home() {
   }, [fetchData]);
 
   const totalNew = data
-    ? [...(data.smartstore ?? []), ...(data.searchad ?? []), ...(data.developers ?? [])].filter(n => n.isNew).length
+    ? [...(data.smartstore ?? []), ...(data.developers ?? [])].filter(n => n.isNew).length
     : 0;
 
   return (
@@ -170,7 +167,7 @@ export default function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-2 flex gap-2 overflow-x-auto">
-          {(['all', 'smartstore', 'searchad', 'developers'] as const).map(s => (
+          {(['all', 'smartstore', 'developers'] as const).map(s => (
             <button
               key={s}
               onClick={() => setFilter(s)}
@@ -187,8 +184,8 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {filter === 'all' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {(['smartstore', 'searchad', 'developers'] as Source[]).map(s => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl mx-auto">
+            {(['smartstore', 'developers'] as Source[]).map(s => (
               <SourcePanel key={s} source={s} notices={data?.[s] ?? []} loading={loading} />
             ))}
           </div>
@@ -198,7 +195,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 max-w-4xl mx-auto">
           <strong>⚠️ 참고:</strong> 네이버 서비스 정책에 따라 일부 공지가 불러와지지 않을 수 있습니다.
           각 패널의 <strong>전체보기</strong> 버튼으로 공식 페이지를 직접 확인하세요.
           대시보드는 <strong>5분마다 자동 갱신</strong>됩니다.

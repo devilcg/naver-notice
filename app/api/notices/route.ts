@@ -8,30 +8,9 @@ export interface Notice {
   date: string;
   url: string;
   category: string;
-  source: 'smartstore' | 'searchad' | 'developers';
+  source: 'smartstore' | 'developers';
   isNew: boolean;
 }
-
-const SOURCES = {
-  smartstore: {
-    name: '스마트스토어',
-    color: '#03C75A',
-    url: 'https://sell.smartstore.naver.com/api/notice/list?page=1&size=10',
-    apiType: 'json' as const,
-  },
-  searchad: {
-    name: '네이버 광고',
-    color: '#1EC800',
-    url: 'https://searchad.naver.com/biz-center/noticeList?page=1&pageSize=10',
-    apiType: 'html' as const,
-  },
-  developers: {
-    name: '개발자센터',
-    color: '#00C73C',
-    url: 'https://developers.naver.com/notice/',
-    apiType: 'html' as const,
-  },
-};
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -96,82 +75,6 @@ async function fetchSmartStoreHtml(): Promise<Notice[]> {
   }
 }
 
-async function fetchSearchAd(): Promise<Notice[]> {
-  // ads.naver.com API 시도
-  const apiUrls = [
-    'https://ads.naver.com/api/notice/list?page=1&pageSize=10',
-    'https://ads.naver.com/api/notices?page=1&size=10',
-    'https://ads.naver.com/sub/api/notice?page=1&pageSize=10',
-    'https://api.naver.com/bizService/notice?pageSize=10&page=1',
-  ];
-
-  for (const apiUrl of apiUrls) {
-    try {
-      const res = await axios.get(apiUrl, {
-        timeout: 5000,
-        headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://ads.naver.com/' },
-      });
-      const items = res.data?.list ?? res.data?.items ?? res.data?.contents ?? res.data ?? [];
-      if (Array.isArray(items) && items.length > 0) {
-        return items.slice(0, 10).map((item: any, i: number) => ({
-          id: `ad-${item.id ?? item.noticeId ?? i}`,
-          title: item.title ?? item.subject ?? '제목 없음',
-          date: item.regDate ?? item.createDate ?? item.date ?? '',
-          url: item.url ?? item.link ?? `https://ads.naver.com/notice`,
-          category: item.category ?? item.noticeType ?? '공지',
-          source: 'searchad' as const,
-          isNew: isNew(item.regDate ?? item.createDate ?? item.date ?? ''),
-        }));
-      }
-    } catch {
-      // 다음 URL 시도
-    }
-  }
-
-  return fetchSearchAdHtml();
-}
-
-async function fetchSearchAdHtml(): Promise<Notice[]> {
-  // ads.naver.com HTML 시도 후 searchad.naver.com 폴백
-  const htmlUrls = [
-    { base: 'https://ads.naver.com', url: 'https://ads.naver.com/notice' },
-    { base: 'https://searchad.naver.com', url: 'https://searchad.naver.com/biz-center/noticeList' },
-  ];
-
-  for (const { base, url } of htmlUrls) {
-    try {
-      const res = await axios.get(url, {
-        timeout: 8000,
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
-      });
-      const $ = cheerio.load(res.data);
-      const notices: Notice[] = [];
-      $('tr, .notice_list li, .notice-row, .notice_item, li[class*="notice"], .board_list tr').each((i, el) => {
-        if (i >= 10) return;
-        const title = $(el).find('.subject, .title, td:nth-child(2), a').first().text().trim();
-        const date = $(el).find('.date, .reg_date, td:last-child').text().trim();
-        const href = $(el).find('a').attr('href') ?? '';
-        if (title && title.length > 2) {
-          notices.push({
-            id: `ad-${i}`,
-            title,
-            date,
-            url: href.startsWith('http') ? href : href ? `${base}${href}` : url,
-            category: '공지',
-            source: 'searchad',
-            isNew: isNew(date),
-          });
-        }
-      });
-      if (notices.length > 0) return notices;
-    } catch {
-      // 다음 URL 시도
-    }
-  }
-
-  return [];
-}
-
 async function fetchDevelopers(): Promise<Notice[]> {
   try {
     const res = await axios.get('https://developers.naver.com/notice/', {
@@ -204,15 +107,13 @@ async function fetchDevelopers(): Promise<Notice[]> {
 }
 
 export async function GET() {
-  const [smartstore, searchad, developers] = await Promise.allSettled([
+  const [smartstore, developers] = await Promise.allSettled([
     fetchSmartstore(),
-    fetchSearchAd(),
     fetchDevelopers(),
   ]);
 
   const data = {
     smartstore: smartstore.status === 'fulfilled' ? smartstore.value : [],
-    searchad: searchad.status === 'fulfilled' ? searchad.value : [],
     developers: developers.status === 'fulfilled' ? developers.value : [],
     fetchedAt: new Date().toISOString(),
   };
